@@ -1,5 +1,6 @@
 // Dashboard.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
+import axiosInstance from "@/utils/axiosInstance"; // তোমার axios instance
 import { Card } from "@/components/ui/card";
 import {
   PieChart,
@@ -15,38 +16,44 @@ import {
 } from "recharts";
 import { FaBook, FaWallet, FaClipboardList, FaUserCheck } from "react-icons/fa";
 import CountUp from "react-countup";
+import { Link } from "react-router";
 
 const COLORS = ["#4CAF50", "#F44336"]; // Attendance colors
 
-// Trend data for small area charts
-const trendData = [
-  { day: "Mon", value: 100 },
-  { day: "Tue", value: 200 },
-  { day: "Wed", value: 150 },
-  { day: "Thu", value: 300 },
-  { day: "Fri", value: 250 },
-  { day: "Sat", value: 400 },
-  { day: "Sun", value: 350 },
-];
-
-// Area chart data
-const areaData = [
-  { day: "Mon", value: 120 },
-  { day: "Tue", value: 200 },
-  { day: "Wed", value: 150 },
-  { day: "Thu", value: 250 },
-  { day: "Fri", value: 300 },
-  { day: "Sat", value: 200 },
-  { day: "Sun", value: 270 },
-];
-
-// Attendance data
-const attendanceData = [
-  { name: "Present", value: 80 },
-  { name: "Absent", value: 20 },
-];
-
 export default function Dashboard() {
+  const [trendData, setTrendData] = useState([]);
+  const [areaData, setAreaData] = useState([]);
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [totalClasses, setTotalClasses] = useState(0);
+  const [totalBudget, setTotalBudget] = useState(0);
+  const [upcomingExams, setUpcomingExams] = useState(0);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await axiosInstance.get("/dashboard");
+        const data = res.data[0]; // MongoDB array থেকে প্রথম object নেওয়া
+
+        if (data) {
+          setTrendData(data.classTrend || []);
+          setAreaData(data.weeklyPerformance || []);
+          setAttendanceData(data.attendance || []);
+          setTotalClasses(data.totalClasses || 0);
+          setTotalBudget(data.totalBudget || 0);
+          setUpcomingExams(data.upcomingExams || 0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  // Attendance safe access
+  const presentValue =
+    attendanceData.find((item) => item.name === "Present")?.value || 0;
+
   return (
     <div className="w-full p-4 md:p-6">
       {/* Header Buttons */}
@@ -55,9 +62,12 @@ export default function Dashboard() {
           Dashboard Overview
         </h2>
         <div className="flex flex-col sm:flex-row gap-4">
-          <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition shadow w-full sm:w-auto">
-            Add Class
-          </button>
+          <Link to="/classes">
+            {" "}
+            <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition shadow w-full sm:w-auto">
+              Add Class
+            </button>{" "}
+          </Link>
           <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition shadow w-full sm:w-auto">
             Add Budget
           </button>
@@ -76,7 +86,7 @@ export default function Dashboard() {
             Total Classes
           </p>
           <p className="text-2xl font-bold mt-1">
-            <CountUp end={5} duration={1.5} />
+            <CountUp end={totalClasses} duration={1.5} />
           </p>
           <ResponsiveContainer width="100%" height={50}>
             <AreaChart data={trendData}>
@@ -98,7 +108,7 @@ export default function Dashboard() {
             Total Budget
           </p>
           <p className="text-2xl font-bold mt-1">
-            $<CountUp end={1000} duration={1.5} />
+            $<CountUp end={totalBudget} duration={1.5} />
           </p>
           <ResponsiveContainer width="100%" height={50}>
             <AreaChart data={trendData}>
@@ -120,7 +130,7 @@ export default function Dashboard() {
             Upcoming Exams
           </p>
           <p className="text-2xl font-bold mt-1">
-            <CountUp end={3} duration={1.5} />
+            <CountUp end={upcomingExams} duration={1.5} />
           </p>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 mt-2">
             <div className="bg-red-500 h-4 rounded-full w-2/3" />
@@ -134,7 +144,7 @@ export default function Dashboard() {
             Attendance Rate
           </p>
           <p className="text-2xl font-bold mt-1">
-            <CountUp end={80} duration={1.5} />%
+            <CountUp end={presentValue} duration={1.5} />%
           </p>
           <ResponsiveContainer width="100%" height={150}>
             <PieChart>
