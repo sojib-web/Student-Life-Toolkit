@@ -15,8 +15,8 @@ export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
 
   const navItems = [
     { name: "Dashboard", path: "/", icon: <FaTachometerAlt /> },
-    { name: "Classes", path: "/classes", icon: <FaBook /> },
-    { name: "Budget", path: "/budget", icon: <FaWallet /> },
+    { name: "Class Schedule", path: "/classes", icon: <FaBook /> },
+    { name: "Budget Tracker", path: "/budget", icon: <FaWallet /> },
     { name: "Exam Q&A", path: "/exam", icon: <FaClipboardList /> },
     { name: "Study Planner", path: "/study", icon: <FaCalendarAlt /> },
   ];

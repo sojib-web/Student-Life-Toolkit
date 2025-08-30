@@ -6,6 +6,7 @@ import Login from "@/pages/Login";
 import PrivateRoute from "./PrivateRoute";
 import Classes from "@/components/Classes/Classes";
 import Dashboard from "@/pages/Dashboard";
+import BudgetTracker from "@/components/BudgetTracker/BudgetTracker";
 
 const router = createBrowserRouter([
   {
@@ -28,6 +29,17 @@ const router = createBrowserRouter([
       </PrivateRoute>
     ),
   },
+  {
+    path: "/budget",
+    element: (
+      <PrivateRoute>
+        <DashboardLayout>
+          <BudgetTracker />
+        </DashboardLayout>
+      </PrivateRoute>
+    ),
+  },
+
   {
     path: "/login",
     element: <Login />,
