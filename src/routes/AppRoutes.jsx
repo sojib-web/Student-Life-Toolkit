@@ -7,6 +7,8 @@ import PrivateRoute from "./PrivateRoute";
 import Classes from "@/components/Classes/Classes";
 import Dashboard from "@/pages/Dashboard";
 import BudgetTracker from "@/components/BudgetTracker/BudgetTracker";
+import ExamQAGenerator from "@/components/ExamQAGenerator/ExamQAGenerator";
+import StudyPlanner from "@/components/StudyPlanner/StudyPlanner";
 
 const router = createBrowserRouter([
   {
@@ -35,6 +37,38 @@ const router = createBrowserRouter([
       <PrivateRoute>
         <DashboardLayout>
           <BudgetTracker />
+        </DashboardLayout>
+      </PrivateRoute>
+    ),
+  },
+
+  {
+    path: "/budget",
+    element: (
+      <PrivateRoute>
+        <DashboardLayout>
+          <BudgetTracker />
+        </DashboardLayout>
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: "/study",
+    element: (
+      <PrivateRoute>
+        <DashboardLayout>
+          <StudyPlanner />
+        </DashboardLayout>
+      </PrivateRoute>
+    ),
+  },
+
+  {
+    path: "/exam",
+    element: (
+      <PrivateRoute>
+        <DashboardLayout>
+          <ExamQAGenerator />
         </DashboardLayout>
       </PrivateRoute>
     ),
