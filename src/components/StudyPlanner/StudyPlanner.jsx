@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Trash2, Upload, Download, Mail } from "lucide-react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { addDays, startOfMonth, endOfMonth, format } from "date-fns";
 import axiosInstance from "@/utils/axiosInstance";
+import { addDays, startOfMonth, endOfMonth, format } from "date-fns";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-// Priority colors
+// Components
+import Header from "./Header";
+import Loader from "./Loader";
+import ProgressBar from "./ProgressBar";
+import TaskCard from "./TaskCard";
+import TaskForm from "./TaskForm";
+import TopControls from "./TopControls";
+import CalendarGrid from "./CalendarGrid";
+
+/* ----------------------------- Utilities ----------------------------- */
 const priorityColors = {
   High: "bg-red-600",
   Medium: "bg-yellow-500",
   Low: "bg-green-500",
 };
-
-// Generate calendar days
 const generateCalendar = (date) => {
   const start = startOfMonth(date);
   const end = endOfMonth(date);
@@ -25,6 +31,7 @@ const generateCalendar = (date) => {
   return days;
 };
 
+/* ----------------------------- Main Component ----------------------------- */
 export default function MonthlyStudyPlanner() {
   const [tasks, setTasks] = useState({});
   const [form, setForm] = useState({
@@ -37,6 +44,9 @@ export default function MonthlyStudyPlanner() {
   const [filterPriority, setFilterPriority] = useState("");
   const [calendarDays] = useState(generateCalendar(new Date()));
   const [currentPage, setCurrentPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
+
   const DAYS_PER_PAGE = 8;
   const totalPages = Math.ceil(calendarDays.length / DAYS_PER_PAGE);
   const paginatedDays = calendarDays.slice(
@@ -44,101 +54,184 @@ export default function MonthlyStudyPlanner() {
     currentPage * DAYS_PER_PAGE + DAYS_PER_PAGE
   );
 
-  // Load tasks
+  /* -------------------- Load tasks -------------------- */
   const loadTasks = async () => {
+    setLoading(true);
     try {
       const res = await axiosInstance.get("/planner");
-      setTasks(res.data);
+      setTasks(res.data || {});
     } catch (err) {
       console.error(err);
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
     }
   };
-
   useEffect(() => {
     loadTasks();
   }, []);
 
-  // Add Task
+  const getDayStats = (dateStr) => {
+    const dayTasks = tasks[dateStr] || [];
+    const total = dayTasks.length;
+    const completed = dayTasks.filter((t) => t.completed).length;
+    const pct = total ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, pct };
+  };
+
+  /* -------------------- Add Task -------------------- */
   const addTask = async () => {
-    if (!form.subject || !form.date) return;
+    if (!form.subject || !form.date) {
+      toast.warn("Subject and Date required");
+      return;
+    }
+    setAdding(true);
+    const optimisticId = Date.now();
+    const optimisticTask = {
+      id: optimisticId,
+      ...form,
+      completed: false,
+      notified: false,
+    };
+    setTasks((prev) => ({
+      ...prev,
+      [form.date]: prev[form.date]
+        ? [...prev[form.date], optimisticTask]
+        : [optimisticTask],
+    }));
+    setForm({
+      subject: "",
+      priority: "Medium",
+      date: format(new Date(), "yyyy-MM-dd"),
+      notes: "",
+    });
+
     try {
-      const res = await axiosInstance.post("/planner", {
-        ...form,
-        notified: false, // <-- Add notified field
+      const res = await axiosInstance.post("/planner", optimisticTask);
+      const saved = res.data;
+      setTasks((prev) => {
+        const dayList = prev[saved.date] || [];
+        const replaced = dayList.map((t) =>
+          t.id === optimisticId ? saved : t
+        );
+        const found = replaced.some((r) => r.id === saved.id);
+        return {
+          ...prev,
+          [saved.date]: found ? replaced : [...replaced, saved],
+        };
       });
-      const newTask = res.data;
+      toast.success("Task added");
+    } catch (err) {
       setTasks((prev) => ({
         ...prev,
-        [form.date]: prev[form.date]
-          ? [...prev[form.date], newTask]
-          : [newTask],
+        [form.date]: (prev[form.date] || []).filter(
+          (t) => t.id !== optimisticId
+        ),
       }));
-      setForm({
-        subject: "",
-        priority: "Medium",
-        date: format(new Date(), "yyyy-MM-dd"),
-        notes: "",
-      });
-    } catch (err) {
-      console.error(err);
+      toast.error("Failed to add task");
+    } finally {
+      setAdding(false);
     }
   };
 
-  // Toggle Complete
+  /* -------------------- Toggle Complete -------------------- */
   const toggleComplete = async (date, id) => {
-    const task = tasks[date].find((t) => t.id === id);
+    const dayList = tasks[date] || [];
+    const task = dayList.find((t) => t.id === id);
+    if (!task) return;
+    setTasks((prev) => ({
+      ...prev,
+      [date]: prev[date].map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t
+      ),
+    }));
     try {
       await axiosInstance.put(`/planner/${date}/${id}`, {
         completed: !task.completed,
       });
+    } catch {
       setTasks((prev) => ({
         ...prev,
         [date]: prev[date].map((t) =>
-          t.id === id ? { ...t, completed: !t.completed } : t
+          t.id === id ? { ...t, completed: task.completed } : t
         ),
       }));
-    } catch (err) {
-      console.error(err);
+      toast.error("Failed to update");
     }
   };
 
-  // Delete Task
+  /* -------------------- Delete Task -------------------- */
   const deleteTask = async (date, id) => {
+    const removed = (tasks[date] || []).find((t) => t.id === id);
+    setTasks((prev) => ({
+      ...prev,
+      [date]: (prev[date] || []).filter((t) => t.id !== id),
+    }));
     try {
       await axiosInstance.delete(`/planner/${date}/${id}`);
+      toast.success("Deleted");
+    } catch {
       setTasks((prev) => ({
         ...prev,
-        [date]: prev[date].filter((t) => t.id !== id),
+        [date]: prev[date] ? [...prev[date], removed] : [removed],
       }));
-    } catch (err) {
-      console.error(err);
+      toast.error("Failed to delete");
     }
   };
 
-  // Drag and Drop
+  /* -------------------- Send Notification -------------------- */
+  const sendNotification = async (date, taskId) => {
+    const task = (tasks[date] || []).find((t) => t.id === taskId);
+    if (!task || task.notified) return toast.info("Already notified");
+    try {
+      await axiosInstance.post(`/planner/notify/${taskId}`, {
+        subject: task.subject,
+        date,
+      });
+      setTasks((prev) => ({
+        ...prev,
+        [date]: prev[date].map((t) =>
+          t.id === taskId ? { ...t, notified: true } : t
+        ),
+      }));
+      toast.success("Email sent");
+    } catch {
+      toast.error("Notify failed");
+    }
+  };
+
+  /* -------------------- Drag & Drop -------------------- */
   const onDragEnd = async (result) => {
     const { source, destination } = result;
     if (!destination) return;
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    )
+      return;
+
     const sourceTasks = Array.from(tasks[source.droppableId] || []);
     const [movedTask] = sourceTasks.splice(source.index, 1);
     const destTasks = Array.from(tasks[destination.droppableId] || []);
     destTasks.splice(destination.index, 0, movedTask);
-    setTasks({
-      ...tasks,
+    setTasks((prev) => ({
+      ...prev,
       [source.droppableId]: sourceTasks,
       [destination.droppableId]: destTasks,
-    });
+    }));
+
     try {
-      await axiosInstance.put(
-        `/planner/${destination.droppableId}/${movedTask.id}`,
-        { date: destination.droppableId }
-      );
-    } catch (err) {
-      console.error(err);
+      await axiosInstance.put(`/planner/move/${movedTask.id}`, {
+        newDate: destination.droppableId,
+      });
+      toast.success("Moved successfully!");
+    } catch {
+      toast.error("Move failed");
+      setTasks((prev) => ({ ...prev }));
     }
   };
 
-  // Export Tasks
+  /* -------------------- Import / Export -------------------- */
   const exportTasks = async () => {
     try {
       const res = await axiosInstance.get("/planner/export", {
@@ -150,278 +243,94 @@ export default function MonthlyStudyPlanner() {
       a.download = "tasks.json";
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      toast.error("Export failed");
     }
   };
 
-  // Import Tasks
   const importTasks = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      try {
-        const json = JSON.parse(ev.target.result);
-        await axiosInstance.post("/planner/import", json);
-        setTasks(json);
-      } catch {
-        alert("Invalid JSON");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Calculate Completion %
-  const calculateCompletion = (date) => {
-    const dayTasks = tasks[date] || [];
-    if (!dayTasks.length) return 0;
-    return Math.round(
-      (dayTasks.filter((t) => t.completed).length / dayTasks.length) * 100
-    );
-  };
-
-  // Send Notification
-  const sendNotification = async (date, taskId) => {
-    const task = tasks[date].find((t) => t.id === taskId);
-    if (!task || task.notified) return; // Already notified
-
     try {
-      // Mock API for sending email
-      await axiosInstance.post(`/planner/notify/${taskId}`, {
-        subject: task.subject,
-        date,
-      });
-
-      // Update notified in frontend
-      setTasks((prev) => ({
-        ...prev,
-        [date]: prev[date].map((t) =>
-          t.id === taskId ? { ...t, notified: true } : t
-        ),
-      }));
-    } catch (err) {
-      console.error(err);
+      const text = await file.text();
+      const json = JSON.parse(text);
+      await axiosInstance.post("/planner/import", json);
+      setTasks(json);
+      toast.success("Imported");
+    } catch {
+      toast.error("Invalid JSON or import failed");
     }
   };
 
   return (
-    <div className="p-6 min-h-screen dark:bg-gray-900 space-y-6">
-      <h2 className="text-4xl font-bold text-center mb-6 text-gray-900 dark:text-gray-100">
-        Monthly Study Planner
-      </h2>
+    <div className="p-4 sm:p-6 md:p-8 min-h-screen dark:bg-gray-900 space-y-6">
+      <Header
+        title="Monthly Study Planner"
+        subtitle={`Organize your tasks, track progress, and study smarter — all in one place!
+Plan your month, set priorities, and never miss a task again.`}
+      />
 
-      {/* Top Row */}
-      <div className="flex flex-col sm:flex-row gap-3 items-end mb-4 w-full">
-        <select
-          value={filterPriority}
-          onChange={(e) => setFilterPriority(e.target.value)}
-          className="p-3 border rounded-lg shadow-sm w-full sm:w-auto dark:bg-gray-700 dark:text-white"
-        >
-          <option value="">All Priorities</option>
-          {Object.keys(priorityColors).map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder="Search tasks..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="p-3 border rounded-lg shadow-sm flex-1 min-w-[150px] dark:bg-gray-700 dark:text-white"
-        />
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={exportTasks}
-            className="flex items-center h-12 gap-1 whitespace-nowrap"
-          >
-            <Download size={16} /> Export
-          </Button>
-          <label className="flex items-center justify-center h-12 px-4 gap-1 bg-gray-900 text-white rounded-lg cursor-pointer dark:bg-white dark:text-black hover:bg-gray-700 transition">
-            <Upload size={16} /> Import
-            <input
-              type="file"
-              accept=".json"
-              onChange={importTasks}
-              className="hidden"
-            />
-          </label>
+      <TopControls
+        filterPriority={filterPriority}
+        setFilterPriority={setFilterPriority}
+        search={search}
+        setSearch={setSearch}
+        priorityColors={priorityColors}
+        exportTasks={exportTasks}
+        importTasks={importTasks}
+      />
+      <TaskForm
+        form={form}
+        setForm={setForm}
+        addTask={addTask}
+        adding={adding}
+        priorityColors={priorityColors}
+      />
+      {loading && (
+        <div className="fixed inset-0 bg-black/30 z-40 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded shadow flex items-center gap-3">
+            <Loader /> <span>Loading tasks...</span>
+          </div>
         </div>
-      </div>
-
-      {/* Bottom Row: Add Task Form */}
-      <div className="flex flex-col sm:flex-row gap-3 items-end w-full mb-6 flex-wrap">
-        <input
-          type="text"
-          placeholder="Subject / Topic"
-          value={form.subject}
-          onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          className="p-3 border rounded-lg shadow-sm flex-1 min-w-[150px] dark:bg-gray-700 dark:text-white"
-        />
-        <input
-          type="text"
-          placeholder="Notes (optional)"
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          className="p-3 border rounded-lg shadow-sm flex-1 min-w-[150px] dark:bg-gray-700 dark:text-white"
-        />
-        <select
-          value={form.priority}
-          onChange={(e) => setForm({ ...form, priority: e.target.value })}
-          className="p-3 border rounded-lg shadow-sm w-full sm:w-auto dark:bg-gray-700 dark:text-white"
-        >
-          {Object.keys(priorityColors).map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={form.date}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
-          className="p-3 border rounded-lg shadow-sm w-full sm:w-auto dark:bg-gray-700 dark:text-white"
-        />
-        <Button onClick={addTask} className="h-12">
-          Add Task
-        </Button>
-      </div>
-
-      {/* Calendar */}
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {paginatedDays.map((day) => {
-            const dayStr = format(day, "yyyy-MM-dd");
-            const dayTasks = tasks[dayStr] || [];
-            return (
-              <Droppable droppableId={dayStr} key={dayStr}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`p-3 rounded-xl min-h-[200px] border shadow-sm ${
-                      snapshot.isDraggingOver
-                        ? "bg-blue-50 dark:bg-blue-900"
-                        : "bg-white dark:bg-gray-800"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold text-gray-800 dark:text-gray-100">
-                        {format(day, "dd MMM")}
-                      </h3>
-                      <div className="w-16 h-2 bg-gray-200 dark:bg-gray-600 rounded-full">
-                        <div
-                          className="h-2 rounded-full bg-green-400"
-                          style={{ width: `${calculateCompletion(dayStr)}%` }}
-                        />
-                      </div>
-                    </div>
-                    {dayTasks
-                      .filter((t) =>
-                        filterPriority ? t.priority === filterPriority : true
-                      )
-                      .filter((t) =>
-                        t.subject.toLowerCase().includes(search.toLowerCase())
-                      )
-                      .map((task, index) => (
-                        <Draggable
-                          key={task.id}
-                          draggableId={task.id.toString()}
-                          index={index}
-                        >
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`p-3 rounded-lg mb-2 shadow flex justify-between items-center ${
-                                task.completed
-                                  ? "opacity-70 line-through bg-gray-100 dark:bg-gray-700"
-                                  : "bg-white dark:bg-gray-900"
-                              } hover:shadow-md`}
-                            >
-                              <div>
-                                <p className="font-semibold text-gray-900 dark:text-gray-100">
-                                  {task.subject}
-                                </p>
-                                <p
-                                  className={`inline-block px-2 py-0.5 mt-1 text-sm rounded-full ${
-                                    priorityColors[task.priority]
-                                  } text-white`}
-                                >
-                                  {task.priority}
-                                </p>
-                                {task.notes && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
-                                    {task.notes}
-                                  </p>
-                                )}
-                                {task.notified && (
-                                  <p className="text-xs text-blue-500 mt-1">
-                                    Notified 📧
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  size="icon"
-                                  onClick={() =>
-                                    toggleComplete(dayStr, task.id)
-                                  }
-                                >
-                                  ✅
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  onClick={() =>
-                                    sendNotification(dayStr, task.id)
-                                  }
-                                >
-                                  📧
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="destructive"
-                                  onClick={() => deleteTask(dayStr, task.id)}
-                                >
-                                  <Trash2 size={16} />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            );
-          })}
-        </div>
-      </DragDropContext>
-
+      )}
+      <CalendarGrid
+        paginatedDays={paginatedDays}
+        tasks={tasks}
+        getDayStats={getDayStats}
+        filterPriority={filterPriority}
+        search={search}
+        toggleComplete={toggleComplete}
+        sendNotification={sendNotification}
+        deleteTask={deleteTask}
+        priorityColors={priorityColors}
+        onDragEnd={onDragEnd}
+      />
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-2">
-        <Button
+      <div className="flex justify-between items-center mt-6 gap-2">
+        <button
           onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
           disabled={currentPage === 0}
+          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded flex-1 sm:flex-none text-center"
         >
           Previous
-        </Button>
-        <span className="text-gray-800 dark:text-gray-100">
+        </button>
+
+        <span className="text-gray-800 dark:text-gray-100 text-center flex-1">
           Page {currentPage + 1} / {totalPages}
         </span>
-        <Button
+
+        <button
           onClick={() =>
             setCurrentPage((p) => (p + 1 < totalPages ? p + 1 : p))
           }
           disabled={currentPage + 1 >= totalPages}
+          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded flex-1 sm:flex-none text-center"
         >
           Next
-        </Button>
+        </button>
       </div>
+
+      <ToastContainer position="top-right" autoClose={2000} />
     </div>
   );
 }

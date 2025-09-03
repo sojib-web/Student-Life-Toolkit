@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "@/utils/axiosInstance";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Header from "../StudyPlanner/Header";
+import TopControls from "../StudyPlanner/TopControls";
 
 export default function ExamQAGenerator() {
   const sampleQuestions = [
@@ -206,9 +208,11 @@ export default function ExamQAGenerator() {
 
   return (
     <div className="min-h-screen p-6  dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <h1 className="text-3xl font-bold text-center mb-8">
-        Exam Q&A Generator
-      </h1>
+      <Header
+        title="Exam Q&A Generator"
+        subtitle={`Test your knowledge, practice questions, and track your progress all in one place!
+Generate questions, add your own, and review answers easily.`}
+      />
 
       {/* Top Row: Filters + Add Question */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
