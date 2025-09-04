@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import axiosInstance from "@/utils/axiosInstance";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 import Header from "../StudyPlanner/Header";
+import FiltersAndGenerate from "./FiltersAndGenerate";
+import AddEditQuestionForm from "./AddEditQuestionForm";
+import CustomQuestionsList from "./CustomQuestionsList";
 import TopControls from "../StudyPlanner/TopControls";
 
 export default function ExamQAGenerator() {
@@ -35,10 +39,12 @@ export default function ExamQAGenerator() {
   const [customQuestions, setCustomQuestions] = useState([]);
   const [filterType, setFilterType] = useState("All");
   const [filterDifficulty, setFilterDifficulty] = useState("All");
+
   const [current, setCurrent] = useState(null);
   const [userAnswer, setUserAnswer] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [showAnswer, setShowAnswer] = useState(false);
+
   const [newQ, setNewQ] = useState({
     type: "MCQ",
     difficulty: "Easy",
@@ -46,8 +52,11 @@ export default function ExamQAGenerator() {
     options: ["", ""],
     answer: "",
   });
+  const [editingQuestion, setEditingQuestion] = useState(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [filterPriority, setFilterPriority] = useState("");
+  const [search, setSearch] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
   const QUESTIONS_PER_PAGE = 3;
@@ -66,12 +75,12 @@ export default function ExamQAGenerator() {
   }, []);
 
   const combinedBank = [...sampleQuestions, ...customQuestions];
-
   const filteredBank = () =>
     combinedBank.filter(
       (q) =>
         (filterType === "All" || q.type === filterType) &&
-        (filterDifficulty === "All" || q.difficulty === filterDifficulty)
+        (filterDifficulty === "All" || q.difficulty === filterDifficulty) &&
+        (!search || q.question.toLowerCase().includes(search.toLowerCase()))
     );
 
   const pickRandomQuestion = () => {
@@ -84,10 +93,9 @@ export default function ExamQAGenerator() {
     }
     const idx = Math.floor(Math.random() * pool.length);
     const q = pool[idx];
-    if (q.type === "MCQ") {
-      const shuffled = [...(q.options || [])].sort(() => Math.random() - 0.5);
-      setCurrent({ ...q, options: shuffled });
-    } else setCurrent(q);
+    if (q.type === "MCQ")
+      q.options = [...(q.options || [])].sort(() => Math.random() - 0.5);
+    setCurrent(q);
     setUserAnswer("");
     setFeedback(null);
     setShowAnswer(false);
@@ -96,402 +104,172 @@ export default function ExamQAGenerator() {
   const checkAnswer = () => {
     if (!current) return;
     let correct = false;
-    if (current.type === "MCQ" || current.type === "TrueFalse") {
+    if (current.type === "MCQ" || current.type === "TrueFalse")
       correct = userAnswer === current.answer;
-    } else if (current.type === "Short") {
+    else if (current.type === "Short")
       correct =
         (userAnswer || "").trim().toLowerCase() ===
         (current.answer || "").trim().toLowerCase();
-    }
+
     setFeedback(correct ? "Correct!" : "Incorrect");
     setShowAnswer(true);
     toast[correct ? "success" : "error"](correct ? "Correct!" : "Incorrect!");
   };
 
-  const updateNewQ = (field, value, idx = null) => {
-    if (field === "option") {
-      const opts = [...newQ.options];
-      opts[idx] = value;
-      setNewQ({ ...newQ, options: opts });
-    } else {
-      setNewQ({ ...newQ, [field]: value });
-    }
-  };
-
-  const validateNewQuestion = (payload) => {
-    if (!payload.question.trim()) return "Question is required.";
-    if (!payload.answer.trim()) return "Answer is required.";
-    if (payload.type === "MCQ") {
-      const opts = (payload.options || []).map((o) => o.trim()).filter(Boolean);
-      if (opts.length < 2) return "MCQ needs at least 2 options.";
-      if (!opts.includes(payload.answer.trim()))
-        return "Answer must match one of the options.";
-    }
-    if (
-      payload.type === "TrueFalse" &&
-      !["True", "False"].includes(payload.answer.trim())
-    )
-      return "Answer must be True or False.";
-    return null;
-  };
-
-  const submitNewQuestion = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setFormError("");
+    const currentData = editingQuestion || newQ;
+
     const payload = {
-      type: newQ.type,
-      difficulty: newQ.difficulty,
-      question: newQ.question.trim(),
-      options:
-        newQ.type === "MCQ" ? newQ.options.map((o) => o.trim()) : undefined,
-      answer: newQ.answer.trim(),
+      type: currentData.type,
+      difficulty: currentData.difficulty,
+      question: (currentData.question || "").trim(),
+      options: (currentData.options || []).map((o) => o.trim()).filter(Boolean),
+      answer: (currentData.answer || "").trim(),
     };
-    const error = validateNewQuestion(payload);
-    if (error) return setFormError(error);
+
+    if (!payload.question) return setFormError("Question is required");
+    if (!payload.answer) return setFormError("Answer is required");
+    if (payload.type === "MCQ" && payload.options.length < 2)
+      return setFormError("MCQ needs at least 2 options");
+
+    if (editingQuestion?._id)
+      submitNewQuestion(payload, true, editingQuestion._id);
+    else submitNewQuestion(payload, false);
+  };
+
+  const submitNewQuestion = async (payload, isEditing = false, id = null) => {
     try {
       setSaving(true);
-      const { data } = await axiosInstance.post("/questions", payload);
-      setCustomQuestions((prev) => [data, ...prev]);
-      setNewQ({
-        type: "MCQ",
-        difficulty: "Easy",
-        question: "",
-        options: ["", ""],
-        answer: "",
-      });
-      toast.success("Question added successfully!");
+      let res;
+
+      if (isEditing && id) {
+        console.log("PUT URL:", `/questions/${id}`, "Payload:", payload);
+        res = await axiosInstance.put(`/questions/${id}`, payload);
+
+        setCustomQuestions((prev) =>
+          prev.map((q) => (q._id === id ? res.data : q))
+        );
+
+        setEditingQuestion(null);
+        toast.success("Question updated!");
+      } else {
+        res = await axiosInstance.post("/questions", payload);
+        setCustomQuestions((prev) => [...prev, res.data]);
+
+        setNewQ({
+          type: "MCQ",
+          difficulty: "Easy",
+          question: "",
+          options: ["", ""],
+          answer: "",
+        });
+        toast.success("Question added!");
+      }
+
+      setFormError("");
     } catch (err) {
-      console.error(err);
-      setFormError(err.response?.data?.message || "Failed to save question.");
-      toast.error("Failed to save question.");
+      console.error("Submit question error:", err);
+      setFormError(err.response?.data?.message || "Something went wrong");
     } finally {
       setSaving(false);
     }
   };
 
-  const confirmDelete = (id) => {
-    toast.info(
-      <div className="space-x-2">
-        <span>Are you sure you want to delete this question?</span>
-        <button
-          onClick={async () => {
-            try {
-              await axiosInstance.delete(`/questions/${id}`);
-              setCustomQuestions((prev) => prev.filter((q) => q._id !== id));
-              toast.dismiss();
-              toast.success("Question deleted!");
-            } catch {
-              toast.dismiss();
-              toast.error("Failed to delete question.");
-            }
-          }}
-          className="px-2 py-1 bg-[#43426E] text-white rounded hover:bg-[#2F2E58]"
-        >
-          Yes
-        </button>
-        <button
-          onClick={() => toast.dismiss()}
-          className="px-2 py-1 bg-gray-300 dark:bg-gray-600 dark:text-gray-200 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
-        >
-          No
-        </button>
-      </div>,
-      { autoClose: false, closeOnClick: false, draggable: false }
-    );
+  const deleteQuestion = async (id) => {
+    try {
+      await axiosInstance.delete(`/questions/${id}`);
+      setCustomQuestions((prev) => prev.filter((q) => q._id !== id));
+      toast.success("Question deleted!");
+    } catch {
+      toast.error("Failed to delete question.");
+    }
   };
 
-  const totalPages = Math.ceil(customQuestions.length / QUESTIONS_PER_PAGE);
-  const paginatedQuestions = customQuestions.slice(
-    (currentPage - 1) * QUESTIONS_PER_PAGE,
-    currentPage * QUESTIONS_PER_PAGE
-  );
+  const exportQuestions = () => {
+    const dataStr = JSON.stringify(customQuestions, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "custom-questions.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importQuestions = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result);
+        if (Array.isArray(imported)) {
+          setCustomQuestions(imported);
+          toast.success("Questions imported successfully!");
+          setCurrentPage(1);
+        } else {
+          toast.error("Invalid file format");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to import questions");
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
-    <div className="min-h-screen p-6  dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen p-6 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <Header
         title="Exam Q&A Generator"
-        subtitle={`Test your knowledge, practice questions, and track your progress all in one place!
-Generate questions, add your own, and review answers easily.`}
+        subtitle="Test your knowledge, practice questions, and track your progress all in one place!"
       />
 
-      {/* Top Row: Filters + Add Question */}
+      <TopControls
+        filterPriority={filterPriority}
+        setFilterPriority={setFilterPriority}
+        search={search}
+        setSearch={setSearch}
+        exportTasks={exportQuestions}
+        importTasks={importQuestions}
+      />
+
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
-        <div className="p-5 bg-white dark:bg-gray-800 shadow rounded-lg">
-          <h2 className="font-semibold mb-3 text-lg">Filters</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-            >
-              <option>All</option>
-              <option>MCQ</option>
-              <option>Short</option>
-              <option>TrueFalse</option>
-            </select>
-            <select
-              value={filterDifficulty}
-              onChange={(e) => setFilterDifficulty(e.target.value)}
-              className="p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-            >
-              <option>All</option>
-              <option>Easy</option>
-              <option>Medium</option>
-              <option>Hard</option>
-            </select>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={pickRandomQuestion}
-              className="flex-1 bg-[#43426E] text-white px-3 py-2 rounded hover:bg-[#2F2E58]"
-            >
-              Generate Question
-            </button>
-            <button
-              onClick={() => {
-                setFilterType("All");
-                setFilterDifficulty("All");
-              }}
-              className="flex-1 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 px-3 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-500"
-            >
-              Reset
-            </button>
-          </div>
-          {/* Current Question */}
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded">
-            {current ? (
-              <div className="space-y-4">
-                <div className="text-lg font-medium">{current.question}</div>
-                {current.type === "MCQ" &&
-                  (current.options || []).map((opt, i) => (
-                    <label
-                      key={i}
-                      className={`block p-2 border rounded cursor-pointer ${
-                        userAnswer === opt
-                          ? "bg-[#43426E] text-white border-[#43426E]"
-                          : "border-gray-300 dark:border-gray-600"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`mcq-${current._id || current.id}`}
-                        value={opt}
-                        checked={userAnswer === opt}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        className="mr-2"
-                      />
-                      {opt}
-                    </label>
-                  ))}
-                {current.type === "TrueFalse" &&
-                  ["True", "False"].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setUserAnswer(t)}
-                      className={`px-3 py-2 mr-2 mb-2 border rounded ${
-                        userAnswer === t
-                          ? "bg-[#43426E] text-white border-[#43426E]"
-                          : "border-gray-300 dark:border-gray-600"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                {current.type === "Short" && (
-                  <input
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    placeholder="Write your answer"
-                    className="w-full p-2 border rounded bg-white dark:bg-gray-600"
-                  />
-                )}
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={checkAnswer}
-                    className="px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded hover:bg-green-700 dark:hover:bg-green-400"
-                  >
-                    Check
-                  </button>
-                  <button
-                    onClick={() => setShowAnswer((s) => !s)}
-                    className="px-3 py-2 bg-yellow-400 dark:bg-yellow-500 rounded hover:bg-yellow-500 dark:hover:bg-yellow-400"
-                  >
-                    {showAnswer ? "Hide" : "Show"} Answer
-                  </button>
-                </div>
-                {feedback && <div className="text-sm">{feedback}</div>}
-                {showAnswer && (
-                  <div className="p-2 border rounded bg-gray-50 dark:bg-gray-600">
-                    <strong>Answer:</strong> {current.answer}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-gray-500 dark:text-gray-400 text-sm text-center">
-                Click "Generate Question" to start.
-              </div>
-            )}
-          </div>
-        </div>
+        <FiltersAndGenerate
+          filterType={filterType}
+          setFilterType={setFilterType}
+          filterDifficulty={filterDifficulty}
+          setFilterDifficulty={setFilterDifficulty}
+          onGenerate={pickRandomQuestion}
+          current={current}
+          userAnswer={userAnswer}
+          setUserAnswer={setUserAnswer}
+          feedback={feedback}
+          showAnswer={showAnswer}
+          setShowAnswer={setShowAnswer}
+          onCheck={checkAnswer}
+        />
 
-        {/* Add Custom Question */}
-        <div className="p-5 bg-white dark:bg-gray-800 shadow rounded-lg">
-          <h2 className="font-semibold mb-3 text-lg">Add Custom Question</h2>
-          <form onSubmit={submitNewQuestion} className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={newQ.type}
-                onChange={(e) =>
-                  setNewQ({ ...newQ, type: e.target.value, answer: "" })
-                }
-                className="p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-              >
-                <option value="MCQ">MCQ</option>
-                <option value="Short">Short</option>
-                <option value="TrueFalse">TrueFalse</option>
-              </select>
-              <select
-                value={newQ.difficulty}
-                onChange={(e) =>
-                  setNewQ({ ...newQ, difficulty: e.target.value })
-                }
-                className="p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-              >
-                <option>Easy</option>
-                <option>Medium</option>
-                <option>Hard</option>
-              </select>
-            </div>
-            <textarea
-              value={newQ.question}
-              onChange={(e) => setNewQ({ ...newQ, question: e.target.value })}
-              placeholder="Enter your question"
-              rows={3}
-              className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-            />
-            {newQ.type === "MCQ" && (
-              <div className="space-y-2">
-                {newQ.options.map((opt, i) => (
-                  <input
-                    key={i}
-                    value={opt}
-                    onChange={(e) => updateNewQ("option", e.target.value, i)}
-                    placeholder={`Option ${i + 1}`}
-                    className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setNewQ({ ...newQ, options: [...newQ.options, ""] })
-                  }
-                  className="px-2 py-1 bg-[#43426E] text-white rounded hover:bg-[#2F2E58]"
-                >
-                  Add Option
-                </button>
-                <input
-                  value={newQ.answer}
-                  onChange={(e) => setNewQ({ ...newQ, answer: e.target.value })}
-                  placeholder="Correct Answer"
-                  className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-                />
-              </div>
-            )}
-            {newQ.type === "TrueFalse" && (
-              <select
-                value={newQ.answer}
-                onChange={(e) => setNewQ({ ...newQ, answer: e.target.value })}
-                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-              >
-                <option value="">Select Answer</option>
-                <option value="True">True</option>
-                <option value="False">False</option>
-              </select>
-            )}
-            {newQ.type === "Short" && (
-              <input
-                value={newQ.answer}
-                onChange={(e) => setNewQ({ ...newQ, answer: e.target.value })}
-                placeholder="Correct Answer"
-                className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
-              />
-            )}
-            {formError && <div className="text-red-500">{formError}</div>}
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full px-3 py-2 bg-[#43426E] text-white rounded hover:bg-[#2F2E58] disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Add Question"}
-            </button>
-          </form>
-        </div>
+        <AddEditQuestionForm
+          newQ={newQ}
+          setNewQ={setNewQ}
+          editingQuestion={editingQuestion}
+          setEditingQuestion={setEditingQuestion}
+          formError={formError}
+          saving={saving}
+          submitHandler={handleSubmit}
+        />
       </div>
 
-      {/* Bottom Row: Custom Questions Full Width */}
-      <div className="p-5 bg-white dark:bg-gray-800 shadow rounded-lg w-full max-w-full max-h-[400px] overflow-auto">
-        <h2 className="font-semibold mb-3 text-lg">Your Questions</h2>
-        {customQuestions.length === 0 ? (
-          <div className="text-gray-500 dark:text-gray-400 text-sm">
-            No custom questions yet.
-          </div>
-        ) : (
-          <>
-            <div className="space-y-2">
-              {paginatedQuestions.map((q) => (
-                <div
-                  key={q._id}
-                  className="p-2 border rounded flex justify-between bg-gray-50 dark:bg-gray-700"
-                >
-                  <div>
-                    <div className="font-medium">{q.question}</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-300">
-                      {q.type} • {q.difficulty}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => confirmDelete(q._id)}
-                    className="px-2 py-1 bg-[#43426E] text-white dark:text-white rounded "
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-            </div>
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-4 space-x-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                >
-                  Prev
-                </button>
-                {[...Array(totalPages)].map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentPage(idx + 1)}
-                    className={`px-3 py-1 border rounded ${
-                      currentPage === idx + 1 ? "bg-[#43426E] text-white" : ""
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(p + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      <CustomQuestionsList
+        questions={customQuestions}
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        deleteQuestion={deleteQuestion}
+        setEditingQuestion={setEditingQuestion}
+        QUESTIONS_PER_PAGE={QUESTIONS_PER_PAGE}
+      />
 
       <ToastContainer
         position="top-right"
