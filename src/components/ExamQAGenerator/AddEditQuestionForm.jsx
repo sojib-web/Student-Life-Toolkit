@@ -1,4 +1,8 @@
 import React from "react";
+import { MdAddHome } from "react-icons/md";
+import { FaEdit } from "react-icons/fa";
+import { HiSaveAs } from "react-icons/hi";
+import { GrUpdate } from "react-icons/gr";
 
 export default function AddEditQuestionForm({
   newQ,
@@ -14,7 +18,14 @@ export default function AddEditQuestionForm({
       const opts = editingQuestion
         ? [...editingQuestion.options]
         : [...newQ.options];
-      opts[idx] = value;
+
+      if (idx === opts.length) {
+        // Adding a new option
+        opts.push(value);
+      } else {
+        opts[idx] = value;
+      }
+
       editingQuestion
         ? setEditingQuestion({ ...editingQuestion, options: opts })
         : setNewQ({ ...newQ, options: opts });
@@ -28,27 +39,37 @@ export default function AddEditQuestionForm({
   const type = editingQuestion ? editingQuestion.type : newQ.type;
 
   return (
-    <div className="p-5 bg-white dark:bg-gray-800 shadow rounded-lg">
-      <h2 className="font-semibold mb-3 text-lg">
-        {editingQuestion ? "Edit Question" : "Add Custom Question"}
+    <div className="p-6 transition-transform transform hover:scale-[1.02] duration-300 dark:bg-gray-800 shadow-xl rounded-2xl border border-gray-200 dark:border-gray-700">
+      <h2 className="font-bold mb-4 text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2">
+        {editingQuestion ? (
+          <>
+            <FaEdit /> Edit Question
+          </>
+        ) : (
+          <>
+            <MdAddHome /> Add Custom Question
+          </>
+        )}
       </h2>
-      <form onSubmit={submitHandler} className="space-y-3">
-        <div className="grid grid-cols-2 gap-2">
+
+      <form onSubmit={submitHandler} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           <select
             value={type}
             onChange={(e) => updateField("type", e.target.value)}
-            className="p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
+            className="p-3 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 transition"
           >
             <option value="MCQ">MCQ</option>
             <option value="Short">Short</option>
-            <option value="TrueFalse">TrueFalse</option>
+            <option value="TrueFalse">True/False</option>
           </select>
+
           <select
             value={
               editingQuestion ? editingQuestion.difficulty : newQ.difficulty
             }
             onChange={(e) => updateField("difficulty", e.target.value)}
-            className="p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
+            className="p-3 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 transition"
           >
             <option>Easy</option>
             <option>Medium</option>
@@ -59,9 +80,9 @@ export default function AddEditQuestionForm({
         <textarea
           value={editingQuestion ? editingQuestion.question : newQ.question}
           onChange={(e) => updateField("question", e.target.value)}
-          placeholder="Enter your question"
+          placeholder="✍️ Enter your question..."
           rows={3}
-          className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
+          className="w-full p-3 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 transition"
         />
 
         {type === "MCQ" && (
@@ -73,10 +94,11 @@ export default function AddEditQuestionForm({
                   value={opt}
                   onChange={(e) => updateField("option", e.target.value, i)}
                   placeholder={`Option ${i + 1}`}
-                  className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
+                  className="w-full p-3 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 transition"
                 />
               )
             )}
+
             <button
               type="button"
               onClick={() =>
@@ -88,15 +110,16 @@ export default function AddEditQuestionForm({
                     : newQ.options.length
                 )
               }
-              className="px-2 py-1 bg-[#43426E] text-white rounded hover:bg-[#2F2E58]"
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg shadow-md hover:bg-gray-800 transition flex items-center gap-2"
             >
-              Add Option
+              <MdAddHome /> Add Option
             </button>
+
             <input
               value={editingQuestion ? editingQuestion.answer : newQ.answer}
               onChange={(e) => updateField("answer", e.target.value)}
-              placeholder="Correct Answer"
-              className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
+              placeholder="✅ Correct Answer"
+              className="w-full p-3 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 transition"
             />
           </div>
         )}
@@ -105,7 +128,7 @@ export default function AddEditQuestionForm({
           <select
             value={editingQuestion ? editingQuestion.answer : newQ.answer}
             onChange={(e) => updateField("answer", e.target.value)}
-            className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
+            className="w-full p-3 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 transition"
           >
             <option value="">Select Answer</option>
             <option value="True">True</option>
@@ -117,23 +140,33 @@ export default function AddEditQuestionForm({
           <input
             value={editingQuestion ? editingQuestion.answer : newQ.answer}
             onChange={(e) => updateField("answer", e.target.value)}
-            placeholder="Correct Answer"
-            className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-200"
+            placeholder="✅ Correct Answer"
+            className="w-full p-3 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900 transition"
           />
         )}
 
-        {formError && <div className="text-red-500">{formError}</div>}
+        {formError && (
+          <div className="text-red-500 font-medium text-sm">{formError}</div>
+        )}
 
         <button
           type="submit"
           disabled={saving}
-          className="w-full px-3 py-2 bg-[#43426E] text-white rounded hover:bg-[#2F2E58] disabled:opacity-50"
+          className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg shadow-md hover:bg-gray-800 transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {saving
-            ? "Saving..."
-            : editingQuestion
-            ? "Update Question"
-            : "Add Question"}
+          {saving ? (
+            <>
+              <HiSaveAs /> Saving...
+            </>
+          ) : editingQuestion ? (
+            <>
+              <GrUpdate /> Update Question
+            </>
+          ) : (
+            <>
+              <MdAddHome /> Add Question
+            </>
+          )}
         </button>
       </form>
     </div>

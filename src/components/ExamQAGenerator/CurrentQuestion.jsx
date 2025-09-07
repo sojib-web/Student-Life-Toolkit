@@ -1,3 +1,8 @@
+import { useState } from "react";
+import { FaCheckCircle } from "react-icons/fa";
+import { MdOutlineHideSource } from "react-icons/md";
+import { BiSolidShow } from "react-icons/bi";
+
 export default function CurrentQuestion({
   current,
   userAnswer,
@@ -10,25 +15,29 @@ export default function CurrentQuestion({
   if (!current)
     return (
       <div className="text-gray-500 dark:text-gray-400 text-sm text-center">
-        Click "Generate Question" to start.
+        Click <strong>"Generate Question"</strong> to start.
       </div>
     );
 
-  // Show Answer button disabled until user clicks Check
+  // Disable Show Answer button until user clicks Check
   const showAnswerDisabled = !feedback;
 
   return (
-    <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded space-y-4">
-      <div className="text-lg font-medium">{current.question}</div>
+    <div className="mt-6 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 space-y-5 transition-all duration-300">
+      {/* Question */}
+      <div className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+        {current.question}
+      </div>
 
+      {/* MCQ Options */}
       {current.type === "MCQ" &&
         current.options?.map((opt, i) => (
           <label
             key={i}
-            className={`block p-2 border rounded cursor-pointer ${
+            className={`block p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
               userAnswer === opt
-                ? "bg-[#43426E] text-white border-[#43426E]"
-                : "border-gray-300 dark:border-gray-600"
+                ? "bg-gray-900 text-white border-gray-900 shadow-md"
+                : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}
           >
             <input
@@ -36,66 +45,87 @@ export default function CurrentQuestion({
               value={opt}
               checked={userAnswer === opt}
               onChange={(e) => setUserAnswer(e.target.value)}
-              className="mr-2"
+              className="mr-2 accent-gray-900 dark:accent-gray-300"
             />
             {opt}
           </label>
         ))}
 
+      {/* True / False Buttons */}
       {current.type === "TrueFalse" &&
         ["True", "False"].map((t) => (
           <button
             key={t}
             onClick={() => setUserAnswer(t)}
-            className={`px-3 py-2 mr-2 mb-2 border rounded ${
+            className={`px-4 py-2 mr-3 mb-2 rounded-lg border font-medium transition-all duration-200 ${
               userAnswer === t
-                ? "bg-[#43426E] text-white border-[#43426E]"
-                : "border-gray-300 dark:border-gray-600"
+                ? "bg-gray-900 text-white border-gray-900 shadow-md"
+                : "border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-200"
             }`}
           >
             {t}
           </button>
         ))}
 
+      {/* Short Answer Input */}
       {current.type === "Short" && (
         <input
           value={userAnswer}
           onChange={(e) => setUserAnswer(e.target.value)}
-          placeholder="Write your answer"
-          className="w-full p-2 border rounded bg-white dark:bg-gray-600"
+          placeholder="✍️ Write your answer here..."
+          className="w-full p-3 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all duration-200"
         />
       )}
 
-      <div className="flex gap-2 mt-2">
-        {/* Check button */}
+      {/* Action Buttons */}
+      <div className="flex gap-4 mt-3">
+        {/* Check Button */}
         <button
           onClick={onCheck}
-          className="px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded hover:bg-green-700 dark:hover:bg-green-400"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 text-white rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105"
         >
-          Check
+          <FaCheckCircle /> Check
         </button>
 
-        {/* Show Answer button */}
+        {/* Show / Hide Answer Button */}
         <button
           onClick={() => setShowAnswer((s) => !s)}
           disabled={showAnswerDisabled}
-          className={`px-3 py-2 rounded ${
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg shadow-md transition-transform transform ${
             showAnswerDisabled
-              ? "bg-yellow-200 dark:bg-yellow-400 text-gray-400 cursor-not-allowed"
-              : "bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-500 dark:hover:bg-yellow-400"
+              ? "bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed"
+              : "bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-500 dark:hover:bg-yellow-400 text-gray-900 font-semibold hover:scale-105"
           }`}
         >
-          {showAnswer ? "Hide" : "Show"} Answer
+          {showAnswer ? (
+            <>
+              <MdOutlineHideSource /> Hide Answer
+            </>
+          ) : (
+            <>
+              <BiSolidShow /> Show Answer
+            </>
+          )}
         </button>
       </div>
 
-      {/* Feedback shows immediately after Check */}
-      {feedback && <div className="text-sm">{feedback}</div>}
+      {/* Feedback Section */}
+      {feedback && (
+        <div
+          className={`text-sm font-medium p-3 rounded-lg shadow-sm ${
+            feedback.includes("Correct")
+              ? "text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900"
+              : "text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900"
+          }`}
+        >
+          {feedback}
+        </div>
+      )}
 
-      {/* Answer only shows when user clicks Show Answer */}
+      {/* Correct Answer Section */}
       {showAnswer && (
-        <div className="p-2 border rounded bg-gray-50 dark:bg-gray-600">
-          <strong>Answer:</strong> {current.answer}
+        <div className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-md">
+          <strong>✅ Correct Answer:</strong> {current.answer}
         </div>
       )}
     </div>

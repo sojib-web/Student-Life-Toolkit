@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axiosInstance from "@/utils/axiosInstance";
+
 import { Card } from "@/components/ui/card";
 import {
   PieChart,
@@ -20,6 +20,9 @@ import { Link } from "react-router";
 import PomodoroTimer from "@/components/PomodoroTimer/PomodoroTimer";
 import AISuggestions from "@/components/AISuggestions/AISuggestions";
 import QuoteCard from "@/components/QuoteCard/QuoteCard";
+import axiosInstance from "@/utils/axiosInstance";
+import PerformanceDashboard from "./PerformanceDashboard";
+import AIQuestionForm from "./AIQuestionForm";
 
 const COLORS = ["#4CAF50", "#F44336"];
 
@@ -105,7 +108,7 @@ export default function Dashboard() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Classes */}
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
+        <Card className="p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
           <FaBook className="text-4xl mb-2 text-blue-600" />
           <p className="text-gray-600 font-medium">Total Classes</p>
           <p className="text-2xl font-bold">
@@ -125,7 +128,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Total Budget */}
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
+        <Card className=" p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
           <FaWallet className="text-4xl mb-2 text-green-600" />
           <p className="text-gray-600 font-medium">Total Budget</p>
           <p className="text-2xl font-bold">
@@ -145,7 +148,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Upcoming Exams */}
-        <Card className="bg-gradient-to-br from-red-50 to-red-100 p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
+        <Card className=" p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
           <FaClipboardList className="text-4xl mb-2 text-red-600" />
           <p className="text-gray-600 font-medium">Upcoming Exams</p>
           <p className="text-2xl font-bold">
@@ -157,7 +160,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Attendance Rate */}
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
+        <Card className=" p-6 flex flex-col items-center rounded-xl shadow-xl hover:scale-105 transition transform">
           <FaUserCheck className="text-4xl mb-2 text-purple-600" />
           <p className="text-gray-600 font-medium">Attendance Rate</p>
           <p className="text-2xl font-bold">{presentValue}%</p>
@@ -211,7 +214,7 @@ export default function Dashboard() {
       )}
 
       {/* Weekly Performance Chart */}
-      <Card className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl shadow-xl hover:scale-105 transition transform">
+      <Card className="p-6  rounded-xl shadow-xl hover:scale-105 transition transform">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">
           Weekly Performance
         </h3>
@@ -239,6 +242,8 @@ export default function Dashboard() {
           </AreaChart>
         </ResponsiveContainer>
       </Card>
+
+      <PerformanceDashboard attempts={[]} />
     </div>
   );
 }
