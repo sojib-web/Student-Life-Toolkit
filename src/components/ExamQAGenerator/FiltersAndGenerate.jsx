@@ -60,7 +60,7 @@ export default function FiltersAndGenerate({
             onClick={onGenerate}
             className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-semibold px-5 py-3 rounded-lg shadow-md transition-transform transform hover:scale-105"
           >
-            <FaQuestion /> Generate Question
+            Generate Question <FaQuestion />
           </Button>
           <Button
             onClick={() => {

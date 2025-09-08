@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { FaEdit } from "react-icons/fa";
-import { AiFillFire } from "react-icons/ai";
+
 import Header from "../StudyPlanner/Header";
 
 const ITEMS_PER_PAGE = 2;

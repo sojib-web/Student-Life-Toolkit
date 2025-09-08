@@ -1,76 +1,114 @@
 import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-
-const fallbackQuotes = [
-  {
-    content: "Stay positive, work hard, and make it happen!",
-    author: "Unknown",
-  },
-  {
-    content:
-      "Success is not final, failure is not fatal: It is the courage to continue that counts.",
-    author: "Winston Churchill",
-  },
-  {
-    content: "Do what you can, with what you have, where you are.",
-    author: "Theodore Roosevelt",
-  },
-];
+import axiosInstance from "@/utils/axiosInstance";
+import { AiFillApi } from "react-icons/ai";
 
 export default function QuoteCard() {
   const [quote, setQuote] = useState("");
   const [author, setAuthor] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Helper: Extract author if format is "quote — author"
+  const parseQuote = (text) => {
+    if (!text) return { quote: "", author: "Unknown" };
+    if (text.includes("—")) {
+      const parts = text.split("—");
+      return { quote: parts[0].trim(), author: parts[1].trim() };
+    }
+    if (text.includes(",")) {
+      const parts = text.split(",");
+      return { quote: parts[0].trim(), author: parts[1].trim() };
+    }
+    return { quote: text.trim(), author: "Unknown" };
+  };
+
+  const fetchQuote = async () => {
+    setLoading(true);
+    setError("");
+
+    // Random language: English or Bengali
+    const languages = ["en", "bn"];
+    const lang = languages[Math.floor(Math.random() * languages.length)];
+
+    try {
+      const res = await axiosInstance.post("/api/generate-questions", {
+        topic:
+          lang === "en"
+            ? "Motivational quotes for students with author name"
+            : "ছাত্রদের জন্য প্রেরণামূলক উক্তি, লেখকের নাম সহ",
+        count: 1,
+        lang: lang,
+      });
+
+      const rawQuote =
+        res.data.questions && res.data.questions.length > 0
+          ? res.data.questions[0].question
+          : lang === "en"
+          ? "Stay positive, work hard, and make it happen! — Unknown"
+          : "সকারাত্মক থাকো, কঠোর পরিশ্রম করো, এবং তা বাস্তবায়ন করো! — অজানা";
+
+      const { quote: qText, author: qAuthor } = parseQuote(rawQuote);
+
+      setQuote(qText);
+      setAuthor(qAuthor);
+    } catch (err) {
+      console.error(err);
+      setError(
+        lang === "en"
+          ? "Failed to load quote. Showing fallback."
+          : "উক্তি লোড করতে ব্যর্থ। বিকল্প দেখানো হচ্ছে।"
+      );
+
+      const fallback =
+        lang === "en"
+          ? "Stay positive, work hard, and make it happen! — Unknown"
+          : "সকারাত্মক থাকো, কঠোর পরিশ্রম করো, এবং তা বাস্তবায়ন করো! — অজানা";
+
+      const { quote: qText, author: qAuthor } = parseQuote(fallback);
+      setQuote(qText);
+      setAuthor(qAuthor);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const cached = localStorage.getItem("sl_daily_quote");
-    const cachedDate = localStorage.getItem("sl_daily_quote_date");
-    const today = new Date().toDateString();
-
-    if (cached && cachedDate === today) {
-      const { content, author } = JSON.parse(cached);
-      setQuote(content);
-      setAuthor(author);
-      return;
-    }
-
-    fetch("https://api.quotable.io/random")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.content && data?.author) {
-          setQuote(data.content);
-          setAuthor(data.author);
-          localStorage.setItem(
-            "sl_daily_quote",
-            JSON.stringify({ content: data.content, author: data.author })
-          );
-          localStorage.setItem("sl_daily_quote_date", today);
-        } else {
-          throw new Error("Invalid API response");
-        }
-      })
-      .catch(() => {
-        // Random fallback quote
-        const fallback =
-          fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
-        setQuote(fallback.content);
-        setAuthor(fallback.author);
-        localStorage.setItem(
-          "sl_daily_quote",
-          JSON.stringify({ content: fallback.content, author: fallback.author })
-        );
-        localStorage.setItem("sl_daily_quote_date", today);
-      });
+    fetchQuote();
   }, []);
 
   return (
-    <Card className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 shadow-xl hover:shadow-2xl transition transform hover:scale-105 h-full flex flex-col">
-      <h3 className="text-lg font-bold mb-3 text-gray-800 dark:text-gray-100">
-        💡 Daily Motivation
-      </h3>
-      <p className="italic text-gray-700 dark:text-gray-300 flex-1 text-center text-lg">
-        “{quote}”
-      </p>
-      <p className="mt-4 text-sm text-right text-gray-500">— {author}</p>
+    <Card className="p-6 flex flex-col justify-between dark:bg-gray-800 h-full">
+      <div className="flex items-center gap-2 mb-3">
+        <AiFillApi className="text-blue-600 dark:text-blue-400" />
+        <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">
+          Daily Motivation
+        </h3>
+      </div>
+
+      {loading ? (
+        <p className="text-gray-500 italic text-center sm:text-left">
+          Loading…
+        </p>
+      ) : error ? (
+        <p className="text-red-500 italic text-center sm:text-left">{error}</p>
+      ) : (
+        <div className="flex flex-col justify-between h-full">
+          <p className="italic text-gray-700 dark:text-gray-300 flex-1 text-center sm:text-left text-base sm:text-lg md:text-xl leading-relaxed">
+            “{quote}”
+          </p>
+          <p className="mt-4 text-sm sm:text-base text-right text-gray-500">
+            — {author}
+          </p>
+        </div>
+      )}
+
+      <button
+        onClick={fetchQuote}
+        className="mt-4 self-end px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg  transition"
+      >
+        Refresh
+      </button>
     </Card>
   );
 }

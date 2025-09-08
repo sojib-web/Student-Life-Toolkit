@@ -7,7 +7,7 @@ import Header from "../StudyPlanner/Header";
 import FiltersAndGenerate from "./FiltersAndGenerate";
 import AddEditQuestionForm from "./AddEditQuestionForm";
 import CustomQuestionsList from "./CustomQuestionsList";
-import TopControls from "../StudyPlanner/TopControls";
+
 import AIQuestionForm from "@/pages/AIQuestionForm";
 
 export default function ExamQAGenerator() {
@@ -28,9 +28,9 @@ export default function ExamQAGenerator() {
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [filterPriority, setFilterPriority] = useState("");
+
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+
   const QUESTIONS_PER_PAGE = 3;
 
   // Fetch questions from backend
@@ -77,18 +77,38 @@ export default function ExamQAGenerator() {
     setShowAnswer(false);
   };
 
+  const saveAttempt = async () => {
+    if (!current) return;
+    try {
+      await axiosInstance.post("/api/attempts", {
+        questionId: current._id,
+        userAnswer,
+        isCorrect: userAnswer === current.answer,
+      });
+      console.log("Attempt saved to database");
+    } catch (err) {
+      console.error("Failed to save attempt:", err);
+    }
+  };
+
   const checkAnswer = () => {
     if (!current) return;
+
     let correct = false;
-    if (current.type === "MCQ" || current.type === "TrueFalse")
+
+    if (current.type === "MCQ" || current.type === "TrueFalse") {
       correct = userAnswer === current.answer;
-    else if (current.type === "Short")
+    } else if (current.type === "Short") {
       correct =
         (userAnswer || "").trim().toLowerCase() ===
         (current.answer || "").trim().toLowerCase();
+    }
+
     setFeedback(correct ? "Correct!" : "Incorrect");
     setShowAnswer(true);
-    toast[correct ? "success" : "error"](correct ? "Correct!" : "Incorrect!");
+
+    // Database এ save
+    saveAttempt();
   };
 
   // Handle add/edit question
@@ -166,43 +186,6 @@ export default function ExamQAGenerator() {
       console.error("Delete error:", err);
       toast.error("Failed to delete question.");
     }
-  };
-
-  const exportQuestions = () => {
-    const dataStr = JSON.stringify(customQuestions, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "custom-questions.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importQuestions = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const imported = JSON.parse(event.target.result);
-        if (Array.isArray(imported)) {
-          const importedWithId = imported.map((q) => ({
-            ...q,
-            _id: q._id || `temp-${Date.now()}-${Math.random()}`,
-          }));
-          setCustomQuestions(importedWithId);
-          toast.success("Questions imported successfully!");
-          setCurrentPage(1);
-        } else {
-          toast.error("Invalid file format");
-        }
-      } catch (err) {
-        console.error("Import error:", err);
-        toast.error("Failed to import questions");
-      }
-    };
-    reader.readAsText(file);
   };
 
   return (
