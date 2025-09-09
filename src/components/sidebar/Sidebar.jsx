@@ -1,4 +1,3 @@
-// Sidebar.jsx
 import React from "react";
 import { Link, useLocation } from "react-router";
 import clsx from "clsx";
@@ -9,6 +8,7 @@ import {
   FaClipboardList,
   FaCalendarAlt,
 } from "react-icons/fa";
+import logo from "../../assets/logo.png";
 
 export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
   const location = useLocation();
@@ -19,6 +19,7 @@ export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
     { name: "Budget Tracker", path: "/budget", icon: <FaWallet /> },
     { name: "Exam Q&A", path: "/exam", icon: <FaClipboardList /> },
     { name: "Study Planner", path: "/study", icon: <FaCalendarAlt /> },
+    { name: "Student Profile", path: "/profile", icon: <FaCalendarAlt /> },
   ];
 
   return (
@@ -33,22 +34,21 @@ export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
             "w-20 p-4 items-center top-0 left-0 h-screen":
               !isMobile && isCollapsed,
 
-            // Mobile sidebar (below navbar)
-            "w-64 p-6 left-0 h-[calc(100%-4rem)] top-16": isMobile, // assuming navbar height = 64px
-            "translate-y-0": isMobile && isOpen, // visible
-            "-translate-y-full": isMobile && !isOpen, // hidden
+            // Mobile sidebar
+            "w-64 p-6 left-0 h-[calc(100%-4rem)] top-16": isMobile,
+            "translate-y-0": isMobile && isOpen,
+            "-translate-y-full": isMobile && !isOpen,
           }
         )}
       >
         {/* Logo */}
-        <h2
-          className={clsx(
-            "text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100",
-            { hidden: isCollapsed && !isMobile }
-          )}
+        <div
+          className={clsx("flex justify-center items-center mb-6", {
+            hidden: isCollapsed && !isMobile,
+          })}
         >
-          Student Toolkit
-        </h2>
+          <img src={logo} alt="Logo" className="w-20 h-20" />
+        </div>
 
         {/* Navigation Items */}
         <ul className="flex flex-col gap-3 w-full">
@@ -57,7 +57,7 @@ export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
               <Link
                 to={item.path}
                 className={clsx(
-                  "flex items-center gap-4 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition font-medium",
+                  "flex items-center gap-4 rounded-lg p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition font-medium",
                   location.pathname === item.path &&
                     "bg-gray-200 dark:bg-gray-700",
                   isCollapsed && !isMobile && "justify-center"
