@@ -266,8 +266,7 @@ export default function MonthlyStudyPlanner() {
     <div className="p-4 sm:p-6 md:p-8 min-h-screen dark:bg-gray-900 space-y-6">
       <Header
         title="Monthly Study Planner"
-        subtitle={`Organize your tasks, track progress, and study smarter — all in one place!
-Plan your month, set priorities, and never miss a task again.`}
+        subtitle="Map out your month, track deadlines, and ensure nothing slips through the cracks."
       />
 
       <TopControls
@@ -288,8 +287,8 @@ Plan your month, set priorities, and never miss a task again.`}
       />
       {loading && (
         <div className="fixed inset-0 bg-black/30 z-40 flex items-center justify-center">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded shadow flex items-center gap-3">
-            <Loader /> <span>Loading tasks...</span>
+          <div className=" dark:bg-gray-800 p-4 rounded shadow flex items-center gap-3">
+            <Loader />
           </div>
         </div>
       )}

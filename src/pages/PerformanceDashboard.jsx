@@ -30,7 +30,7 @@ export default function PerformanceDashboard({ attempts }) {
   const COLORS = ["#0ea5e9", "#3b82f6"]; // For Pie chart
 
   return (
-    <div className="p-6 space-y-6">
+    <div className=" space-y-6">
       <h2 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
         <CgPerformance className="text-3xl" /> Student - Performance Overview
       </h2>

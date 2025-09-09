@@ -1,3 +1,4 @@
+// ExamQAGenerator.jsx
 import React, { useState, useEffect } from "react";
 import axiosInstance from "@/utils/axiosInstance";
 import { ToastContainer, toast } from "react-toastify";
@@ -9,6 +10,7 @@ import AddEditQuestionForm from "./AddEditQuestionForm";
 import CustomQuestionsList from "./CustomQuestionsList";
 
 import AIQuestionForm from "@/pages/AIQuestionForm";
+import Loader from "../StudyPlanner/Loader";
 
 export default function ExamQAGenerator() {
   const [customQuestions, setCustomQuestions] = useState([]);
@@ -28,7 +30,7 @@ export default function ExamQAGenerator() {
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
-
+  const [loading, setLoading] = useState(false); // Loader state
   const [search, setSearch] = useState("");
 
   const QUESTIONS_PER_PAGE = 3;
@@ -36,6 +38,7 @@ export default function ExamQAGenerator() {
   // Fetch questions from backend
   useEffect(() => {
     const fetchQuestions = async () => {
+      setLoading(true);
       try {
         const { data } = await axiosInstance.get("/questions");
         setCustomQuestions(
@@ -46,6 +49,8 @@ export default function ExamQAGenerator() {
       } catch (err) {
         console.error("Fetch error:", err);
         toast.error("Failed to load questions.");
+      } finally {
+        setLoading(false);
       }
     };
     fetchQuestions();
@@ -134,6 +139,7 @@ export default function ExamQAGenerator() {
 
     try {
       setSaving(true);
+      setLoading(true);
       let res;
 
       if (editingQuestion?._id && !editingQuestion._id.startsWith("temp-")) {
@@ -174,26 +180,38 @@ export default function ExamQAGenerator() {
       toast.error(formError || "Something went wrong");
     } finally {
       setSaving(false);
+      setLoading(false);
     }
   };
 
   const deleteQuestion = async (id) => {
     try {
+      setLoading(true);
       await axiosInstance.delete(`/questions/${id}`);
       setCustomQuestions((prev) => prev.filter((q) => q._id !== id));
       toast.success("Question deleted!");
     } catch (err) {
       console.error("Delete error:", err);
       toast.error("Failed to delete question.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen p-6 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen p-6 dark:bg-gray-900 text-gray-900 dark:text-gray-100 relative">
+      {/* Loader Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <Loader size={50} />
+        </div>
+      )}
+
       <Header
-        title="Exam Q&A Generator"
-        subtitle="Test your knowledge, practice questions, and track your progress all in one place!"
+        title="Challenge Yourself"
+        subtitle="Build custom quizzes, tackle questions, and measure your improvement"
       />
+
       <AIQuestionForm />
       <div className="grid lg:grid-cols-2 gap-6 mb-8 mt-10">
         <FiltersAndGenerate

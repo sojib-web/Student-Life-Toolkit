@@ -7,8 +7,9 @@ import {
   FaWallet,
   FaClipboardList,
   FaCalendarAlt,
-} from "react-icons/fa";
-import logo from "../../assets/logo.png";
+  FaUserCircle,
+} from "react-icons/fa"; // Use unique icons
+import logo from "../../assets/student-logo.svg";
 
 export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
   const location = useLocation();
@@ -19,14 +20,14 @@ export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
     { name: "Budget Tracker", path: "/budget", icon: <FaWallet /> },
     { name: "Exam Q&A", path: "/exam", icon: <FaClipboardList /> },
     { name: "Study Planner", path: "/study", icon: <FaCalendarAlt /> },
-    { name: "Student Profile", path: "/profile", icon: <FaCalendarAlt /> },
+    { name: "Student Profile", path: "/profile", icon: <FaUserCircle /> }, // unique icon
   ];
 
   return (
     <>
       <aside
         className={clsx(
-          "bg-white dark:bg-gray-900 shadow-lg transition-transform duration-300 flex flex-col z-50 fixed overflow-y-auto",
+          "bg-white dark:bg-gray-900 border-r transition-transform duration-300 flex flex-col z-50 fixed overflow-y-auto",
           {
             // Desktop sidebar
             "w-64 p-6 items-start top-0 left-0 h-screen":
@@ -47,7 +48,7 @@ export default function Sidebar({ isCollapsed, isMobile, isOpen, setIsOpen }) {
             hidden: isCollapsed && !isMobile,
           })}
         >
-          <img src={logo} alt="Logo" className="w-20 h-20" />
+          <img src={logo} alt="Logo" className="" />
         </div>
 
         {/* Navigation Items */}

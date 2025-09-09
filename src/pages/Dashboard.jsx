@@ -1,4 +1,3 @@
-// Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from "recharts";
@@ -11,6 +10,8 @@ import QuoteCard from "@/components/QuoteCard/QuoteCard";
 import AISuggestions from "@/components/AISuggestions/AISuggestions";
 import { MdDashboard } from "react-icons/md";
 import PlannerDashboard from "./PlannerDashboard";
+import { useAuth } from "@/context/AuthContext";
+import Loader from "@/components/StudyPlanner/Loader";
 
 export default function Dashboard() {
   const [trendData, setTrendData] = useState([]);
@@ -19,9 +20,12 @@ export default function Dashboard() {
   const [totalBudget, setTotalBudget] = useState(0);
   const [upcomingExams, setUpcomingExams] = useState(0);
   const [attempts, setAttempts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      setLoading(true);
       try {
         const [classesRes, budgetRes, questionsRes, attemptsRes] =
           await Promise.all([
@@ -31,13 +35,11 @@ export default function Dashboard() {
             axiosInstance.get("/api/attempts"),
           ]);
 
-        // Classes
         const classes = classesRes.data || [];
         setTotalClasses(classes.length);
         setTrendData(classes.map((cls) => ({ name: cls.name, value: 1 })));
         setUpcomingExams(classes.filter((cls) => cls.type === "Exam").length);
 
-        // Budget
         const budgetData = budgetRes.data || [];
         const total = budgetData.reduce(
           (acc, item) =>
@@ -46,17 +48,14 @@ export default function Dashboard() {
         );
         setTotalBudget(total);
 
-        // Budget Trend Chart
         const budgetTrend = budgetData.map((item, index) => ({
           name: item.name || `Item ${index + 1}`,
           value: item.type === "income" ? item.amount : -item.amount,
         }));
         setBudgetTrendData(budgetTrend);
 
-        // Questions & Attempts
         const questions = questionsRes.data || [];
         const attemptsData = attemptsRes.data?.data || [];
-
         const mappedAttempts = attemptsData.map((a) => {
           const question = questions.find((q) => q._id === a.questionId);
           return {
@@ -69,18 +68,30 @@ export default function Dashboard() {
         setAttempts(mappedAttempts);
       } catch (error) {
         console.error("Dashboard fetch error:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchDashboardData();
   }, []);
 
+  if (loading)
+    return (
+      <div className="fixed inset-0  flex items-center justify-center z-50">
+        <Loader size={50} />
+      </div>
+    );
+
   return (
     <div className="w-full p-4 md:p-6 space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-          <MdDashboard className="text-3xl" /> Dashboard Overview
+          <MdDashboard className="text-3xl" />
+          {user?.displayName
+            ? `Welcome back, ${user.displayName}!`
+            : "Welcome to Your Dashboard!"}
         </h2>
 
         {/* Buttons */}
@@ -132,29 +143,14 @@ export default function Dashboard() {
                 dataKey="value"
                 stroke="#3B82F6"
                 fill="url(#classGradient)"
-                onClick={(data) =>
-                  alert(`Class: ${data.name}, Value: ${data.value}`)
-                }
               />
-              <Tooltip
-                contentStyle={{
-                  fontSize: "12px",
-                  backgroundColor: "#f0f4f8",
-                  border: "1px solid #ccc",
-                  borderRadius: "8px",
-                  padding: "5px",
-                }}
-                formatter={(value, name) => [`${value}`, "Classes"]}
-              />
+              <Tooltip />
             </AreaChart>
           </ResponsiveContainer>
         </Card>
 
         {/* Total Budget */}
-        <Card
-          className="border dark:bg-gray-800  text-card-foreground p-6 rounded-xl shadow-xl 
-        hover:shadow-2xl transition transform hover:scale-105 flex flex-col justify-between min-h-[220px]"
-        >
+        <Card className="border dark:bg-gray-800 text-card-foreground p-6 rounded-xl shadow-xl hover:shadow-2xl transition transform hover:scale-105 flex flex-col justify-between min-h-[220px]">
           <div className="flex flex-col items-center">
             <FaWallet className="text-3xl md:text-4xl mb-2 text-green-600" />
             <p className="text-gray-600 font-medium">Total Budget</p>
@@ -163,10 +159,7 @@ export default function Dashboard() {
             </p>
           </div>
           <ResponsiveContainer width="100%" height={60}>
-            <AreaChart
-              data={budgetTrendData}
-              margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
-            >
+            <AreaChart data={budgetTrendData}>
               <defs>
                 <linearGradient id="budgetGradient" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0%" stopColor="#10B981" stopOpacity={0.8} />
@@ -178,20 +171,8 @@ export default function Dashboard() {
                 dataKey="value"
                 stroke="#10B981"
                 fill="url(#budgetGradient)"
-                onClick={(data) =>
-                  alert(`Item: ${data.name}, Value: $${data.value}`)
-                }
               />
-              <Tooltip
-                contentStyle={{
-                  fontSize: "12px",
-                  backgroundColor: "#f0f4f8",
-                  border: "1px solid #ccc",
-                  borderRadius: "8px",
-                  padding: "5px",
-                }}
-                formatter={(value, name) => [`$${value}`, "Budget"]}
-              />
+              <Tooltip />
             </AreaChart>
           </ResponsiveContainer>
         </Card>

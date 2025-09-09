@@ -13,6 +13,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import axiosInstance from "@/utils/axiosInstance";
+import Loader from "@/components/StudyPlanner/Loader";
 
 export default function PlannerDashboard() {
   const [plannerData, setPlannerData] = useState([]);
@@ -60,9 +61,9 @@ export default function PlannerDashboard() {
 
   if (loading)
     return (
-      <p className="text-gray-500 dark:text-gray-300 text-center mt-10">
-        Loading Planner Data…
-      </p>
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <Loader size={50} />
+      </div>
     );
 
   return (

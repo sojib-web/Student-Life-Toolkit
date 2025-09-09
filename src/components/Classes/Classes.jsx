@@ -10,6 +10,7 @@ import axiosInstance from "@/utils/axiosInstance";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Header from "../StudyPlanner/Header";
+import { useAuth } from "@/context/AuthContext";
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const classTypes = [
@@ -22,6 +23,7 @@ const ITEMS_PER_PAGE = 3;
 export default function Classes() {
   const [classes, setClasses] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     instructor: "",
@@ -224,7 +226,11 @@ export default function Classes() {
 
   return (
     <div className="w-full p-4 sm:p-6 space-y-8">
-      <Header title="Classes" description="Manage your class schedule" />
+      <Header
+        className="mb-4"
+        title={`Good Day, ${user?.displayName || "Student"}!`}
+        subtitle="Here’s a clear view of your class schedule and tasks for today."
+      />
 
       {/* Form Card */}
       <Card className="p-4 sm:p-6 shadow-xl border rounded-2xl bg-gradient-to-r from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 overflow-x-auto">

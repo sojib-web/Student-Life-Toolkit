@@ -18,6 +18,7 @@ import { PlusCircle, Trash2 } from "lucide-react";
 import { FaEdit } from "react-icons/fa";
 
 import Header from "../StudyPlanner/Header";
+import Loader from "../StudyPlanner/Loader";
 
 const ITEMS_PER_PAGE = 2;
 
@@ -165,19 +166,17 @@ const BudgetTracker = () => {
 
   if (loading)
     return (
-      <p className="text-center mt-10 text-gray-500 dark:text-gray-300">
-        Loading...
-      </p>
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <Loader size={50} />
+      </div>
     );
 
   return (
     <div className="mx-auto p-6 space-y-8">
-      <h2 className="flex items-center justify-center gap-2 text-4xl font-bold text-center">
-        <Header
-          title="Smart Budget Tracker"
-          subtitle="Track your income & expenses"
-        />
-      </h2>
+      <Header
+        title="Take Control of Your Budget"
+        subtitle="Keep track of every income and expense to stay financially smart"
+      />
 
       {/* Search */}
       <input

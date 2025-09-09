@@ -1,16 +1,17 @@
-// DashboardLayout.jsx
-import React, { useState, useEffect } from "react";
-import Sidebar from "@/components/sidebar/Sidebar";
-import Navbar from "@/components/navbar/Navbar";
+import React, { useEffect, useState } from "react";
+import Navbar from "@/components/Navbar/Navbar";
+import Sidebar from "@/components/Sidebar/Sidebar";
+import { Outlet } from "react-router-dom";
 
-export default function DashboardLayout({ children }) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+export default function DashboardLayout() {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Desktop collapse
   const [isMobile, setIsMobile] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Mobile overlay
 
+  // Detect mobile devices
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
+      const mobile = window.innerWidth < 1024; // lg breakpoint
       setIsMobile(mobile);
       setIsSidebarOpen(!mobile); // Desktop open, Mobile closed initially
     };
@@ -19,10 +20,18 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const desktopSidebarWidth = isSidebarCollapsed ? "80px" : "256px";
+  // Toggle sidebar
+  const toggleSidebar = () => {
+    if (isMobile) {
+      setIsSidebarOpen(!isSidebarOpen); // Mobile overlay
+    } else {
+      setIsSidebarCollapsed(!isSidebarCollapsed); // Desktop collapse
+    }
+  };
 
   return (
-    <div className="flex min-h-screen dark:bg-gray-900">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         isMobile={isMobile}
@@ -30,19 +39,17 @@ export default function DashboardLayout({ children }) {
         setIsOpen={setIsSidebarOpen}
       />
 
+      {/* Main content */}
       <div
-        className="flex-1 flex flex-col transition-all duration-300"
-        style={{ marginLeft: !isMobile ? desktopSidebarWidth : 0 }}
+        className="flex flex-col flex-1 min-h-screen transition-all duration-300"
+        style={{
+          marginLeft: isMobile ? "0" : isSidebarCollapsed ? "80px" : "256px", // Desktop width
+        }}
       >
-        <Navbar
-          toggleSidebar={() =>
-            isMobile
-              ? setIsSidebarOpen(!isSidebarOpen)
-              : setIsSidebarCollapsed(!isSidebarCollapsed)
-          }
-        />
-        <main className="p-6 flex-1 overflow-auto transition-all duration-300">
-          {children}
+        <Navbar sidebarOpen={isSidebarOpen} setSidebarOpen={toggleSidebar} />
+
+        <main className="p-6">
+          <Outlet />
         </main>
       </div>
     </div>

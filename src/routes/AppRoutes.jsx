@@ -1,8 +1,8 @@
 // router.jsx
 import React from "react";
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter } from "react-router-dom";
 import DashboardLayout from "@/pages/DashboardLayout";
-import Login from "@/pages/Login";
+import Login from "@/pages/Login"; // Single file handles login & signup toggle
 import PrivateRoute from "./PrivateRoute";
 import Classes from "@/components/Classes/Classes";
 import Dashboard from "@/pages/Dashboard";
@@ -10,89 +10,54 @@ import BudgetTracker from "@/components/BudgetTracker/BudgetTracker";
 import ExamQAGenerator from "@/components/ExamQAGenerator/ExamQAGenerator";
 import StudyPlanner from "@/components/StudyPlanner/StudyPlanner";
 import Profile from "@/pages/Profile";
+import NotFound from "@/pages/NotFound";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: (
       <PrivateRoute>
-        <DashboardLayout>
-          <Dashboard />
-        </DashboardLayout>
+        <DashboardLayout />
       </PrivateRoute>
     ),
+    children: [
+      {
+        index: true,
+        element: <Dashboard />,
+      },
+      {
+        path: "classes",
+        element: <Classes />,
+      },
+      {
+        path: "budget",
+        element: <BudgetTracker />,
+      },
+      {
+        path: "study",
+        element: <StudyPlanner />,
+      },
+      {
+        path: "exam",
+        element: <ExamQAGenerator />,
+      },
+      {
+        path: "profile",
+        element: <Profile />,
+      },
+    ],
   },
   {
-    path: "/classes",
-    element: (
-      <PrivateRoute>
-        <DashboardLayout>
-          <Classes />
-        </DashboardLayout>
-      </PrivateRoute>
-    ),
-  },
-  {
-    path: "/budget",
-    element: (
-      <PrivateRoute>
-        <DashboardLayout>
-          <BudgetTracker />
-        </DashboardLayout>
-      </PrivateRoute>
-    ),
-  },
-
-  {
-    path: "/budget",
-    element: (
-      <PrivateRoute>
-        <DashboardLayout>
-          <BudgetTracker />
-        </DashboardLayout>
-      </PrivateRoute>
-    ),
-  },
-  {
-    path: "/study",
-    element: (
-      <PrivateRoute>
-        <DashboardLayout>
-          <StudyPlanner />
-        </DashboardLayout>
-      </PrivateRoute>
-    ),
-  },
-
-  {
-    path: "/exam",
-    element: (
-      <PrivateRoute>
-        <DashboardLayout>
-          <ExamQAGenerator />
-        </DashboardLayout>
-      </PrivateRoute>
-    ),
-  },
-
-  {
-    path: "/profile",
-    element: (
-      <PrivateRoute>
-        <DashboardLayout>
-          <Profile />
-        </DashboardLayout>
-      </PrivateRoute>
-    ),
-  },
-
-  {
-    path: "/login",
+    path: "/login", // Single route for login/signup toggle
     element: <Login />,
   },
   {
-    path: "/signup",
+    path: "/signup", // Optional: just redirect to /login for toggle
     element: <Login />,
+  },
+  {
+    path: "*",
+    element: <NotFound />,
   },
 ]);
 
