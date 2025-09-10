@@ -2,7 +2,7 @@
 import React from "react";
 import { createBrowserRouter } from "react-router-dom";
 import DashboardLayout from "@/pages/DashboardLayout";
-import Login from "@/pages/Login"; // Single file handles login & signup toggle
+import Login from "@/pages/Login";
 import PrivateRoute from "./PrivateRoute";
 import Classes from "@/components/Classes/Classes";
 import Dashboard from "@/pages/Dashboard";
@@ -48,11 +48,11 @@ const router = createBrowserRouter([
     ],
   },
   {
-    path: "/login", // Single route for login/signup toggle
+    path: "/login",
     element: <Login />,
   },
   {
-    path: "/signup", // Optional: just redirect to /login for toggle
+    path: "/signup",
     element: <Login />,
   },
   {

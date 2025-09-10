@@ -21,9 +21,9 @@ const classTypes = [
 const ITEMS_PER_PAGE = 3;
 
 export default function Classes() {
+  const { user } = useAuth();
   const [classes, setClasses] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
-  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     instructor: "",
@@ -49,7 +49,8 @@ export default function Classes() {
       const res = await axiosInstance.get("/api/classes");
       setClasses(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("Fetch classes error:", err);
+      toast.error("❌ Failed to fetch classes!");
     }
   };
 
@@ -70,22 +71,6 @@ export default function Classes() {
 
   const filteredClasses = paginatedClasses.filter(filterClasses);
 
-  const highlightText = (text) => {
-    const query = searchQuery;
-    if (!query) return text;
-    const regex = new RegExp(`(${query})`, "gi");
-    const parts = text.split(regex);
-    return parts.map((part, i) =>
-      regex.test(part) ? (
-        <span key={i} className="bg-yellow-300 dark:bg-yellow-500 px-1 rounded">
-          {part}
-        </span>
-      ) : (
-        part
-      )
-    );
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "type") {
@@ -100,33 +85,29 @@ export default function Classes() {
     }
   };
 
-  const hasConflict = () => {
-    return classes.some(
-      (cls) =>
-        cls.day === formData.day &&
-        !(
-          formData.endTime <= cls.startTime || formData.startTime >= cls.endTime
-        ) &&
-        cls._id !== editingId
-    );
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (hasConflict()) {
-      toast.error("⚠️ Class time overlaps with another class!");
-      return;
-    }
     try {
       if (isEditing) {
-        await axiosInstance.put(`/api/classes/${editingId}`, formData);
+        const { _id, ...dataToSend } = formData;
+        const res = await axiosInstance.put(
+          `/api/classes/${editingId}`,
+          dataToSend
+        );
+        setClasses((prev) =>
+          prev.map((cls) =>
+            cls._id === editingId ? { ...res.data, _id: editingId } : cls
+          )
+        );
+        toast.success("✅ Class updated successfully!");
         setIsEditing(false);
         setEditingId(null);
-        toast.success("✅ Class updated successfully!");
       } else {
-        await axiosInstance.post("/api/classes", formData);
+        const res = await axiosInstance.post("/api/classes", formData);
+        setClasses((prev) => [...prev, res.data]);
         toast.success("✅ Class added successfully!");
       }
+
       setFormData({
         name: "",
         instructor: "",
@@ -136,10 +117,11 @@ export default function Classes() {
         type: "Lecture",
         color: "#3B82F6",
       });
-      fetchClasses();
     } catch (err) {
-      console.error(err);
-      toast.error("❌ Failed to save class!");
+      console.error("❌ Save class error:", err.response?.data || err);
+      toast.error(
+        `❌ Failed to save class! ${err.response?.data?.message || err.message}`
+      );
     }
   };
 
@@ -152,10 +134,10 @@ export default function Classes() {
   const handleDelete = async (id) => {
     try {
       await axiosInstance.delete(`/api/classes/${id}`);
-      fetchClasses();
+      setClasses((prev) => prev.filter((cls) => cls._id !== id));
       toast.success("🗑️ Class deleted!");
     } catch (err) {
-      console.error(err);
+      console.error("Delete class error:", err);
       toast.error("❌ Failed to delete class!");
     }
   };
@@ -169,12 +151,14 @@ export default function Classes() {
       await axiosInstance.post("/api/classes/bulk-delete", {
         ids: selectedClasses,
       });
+      setClasses((prev) =>
+        prev.filter((cls) => !selectedClasses.includes(cls._id))
+      );
       setSelectedClasses([]);
       setSelectAll(false);
-      fetchClasses();
       toast.success("🗑️ Selected classes deleted!");
     } catch (err) {
-      console.error(err);
+      console.error("Bulk delete error:", err);
       toast.error("❌ Bulk delete failed!");
     }
   };
@@ -211,15 +195,6 @@ export default function Classes() {
       setSelectedClasses(ids);
       setSelectAll(true);
     }
-  };
-
-  const calculateDuration = (start, end) => {
-    const [sh, sm] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
-    const minutes = (eh - sh) * 60 + (em - sm);
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${h}h ${m}m`;
   };
 
   const totalPages = Math.ceil(classes.length / ITEMS_PER_PAGE);
@@ -325,21 +300,22 @@ export default function Classes() {
       </Card>
 
       {/* Class List Card */}
-      <Card className="p-2 sm:p-4 shadow-xl border rounded-2xl bg-white dark:bg-gray-900 overflow-x-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4 space-y-2 sm:space-y-0 sm:space-x-3">
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
+      <Card className="p-4 sm:p-6 shadow-xl border rounded-2xl bg-white dark:bg-gray-900 overflow-x-auto">
+        {/* Header + Bulk Actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+          <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100">
             Your Classes
           </h3>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button
               onClick={handleBulkDelete}
-              className="bg-gray-900 hover:bg-gray-700 text-white dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 w-full sm:w-auto"
+              className="bg-red-600 hover:bg-red-500 text-white w-full sm:w-auto"
             >
               Delete Selected
             </Button>
             <Button
               onClick={handleExport}
-              className="bg-gray-900 hover:bg-gray-700 text-white dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 w-full sm:w-auto"
+              className="bg-blue-600 hover:bg-blue-500 text-white w-full sm:w-auto"
             >
               Export Selected
             </Button>
@@ -347,7 +323,7 @@ export default function Classes() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <Input
             type="text"
             placeholder="Search by name, instructor, day..."
@@ -378,64 +354,121 @@ export default function Classes() {
           </label>
         </div>
 
-        {filteredClasses.length === 0 ? (
-          <p className="text-gray-700 dark:text-gray-300 flex items-center space-x-2">
-            <MdOutlineDoNotDisturb /> <span>Class not found.</span>
-          </p>
-        ) : (
-          <ul className="space-y-2 sm:space-y-3">
-            {filteredClasses.map((cls) => (
+        {/* Table Header (always visible) */}
+        <div className="grid grid-cols-8 gap-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium p-2 rounded-t-lg">
+          <span>Checkbox</span>
+          <span>Class Name</span>
+          <span>Instructor</span>
+          <span>Day</span>
+          <span>Start Time</span>
+          <span>End Time</span>
+          <span>Class Type</span>
+          <span>Actions</span>
+        </div>
+
+        {/* Classes List */}
+        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+          {filteredClasses.length === 0 ? (
+            <p className="text-gray-700 dark:text-gray-300 flex items-center space-x-2 mt-3">
+              <MdOutlineDoNotDisturb /> <span>Class not found.</span>
+            </p>
+          ) : (
+            filteredClasses.map((cls) => (
               <li
                 key={cls._id}
-                className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-lg bg-gradient-to-r from-blue-100 to-blue-200 dark:from-gray-800 dark:to-gray-700"
+                className="grid grid-cols-1 sm:grid-cols-8 gap-4 items-start sm:items-center p-4 sm:p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                <div className="flex items-center space-x-2 sm:space-x-3 w-full sm:w-auto flex-wrap">
+                {/* Checkbox */}
+                <div className="col-span-1 flex items-center">
                   <input
                     type="checkbox"
                     checked={selectedClasses.includes(cls._id)}
                     onChange={() => toggleSelectClass(cls._id)}
                     className="w-4 h-4"
                   />
-                  <div className="text-gray-900 dark:text-gray-100 break-words">
-                    <p>{highlightText(cls.name)}</p>
-                    <p>
-                      {highlightText(
-                        `${cls.instructor} | ${cls.day} | ${cls.startTime}-${
-                          cls.endTime
-                        } (${calculateDuration(
-                          cls.startTime,
-                          cls.endTime
-                        )}) | ${cls.type}`
-                      )}
-                    </p>
-                  </div>
                 </div>
-                <div className="flex space-x-2 sm:space-x-3 items-center mt-2 sm:mt-0">
+
+                {/* Name */}
+                <div className="col-span-1 font-medium text-gray-900 dark:text-gray-100">
+                  {cls.name}
+                </div>
+
+                {/* Instructor */}
+                <div className="col-span-1 text-gray-700 dark:text-gray-300">
+                  {cls.instructor}
+                </div>
+
+                {/* Day */}
+                <div className="col-span-1 text-gray-700 dark:text-gray-300">
+                  {cls.day}
+                </div>
+
+                {/* Start Time */}
+                <div className="col-span-1 text-gray-700 dark:text-gray-300">
+                  {cls.startTime}
+                </div>
+
+                {/* End Time */}
+                <div className="col-span-1 text-gray-700 dark:text-gray-300">
+                  {cls.endTime}
+                </div>
+
+                {/* Type */}
+                <div className="col-span-1 flex items-center space-x-2">
                   <div
-                    className="w-5 h-5 rounded-full border"
+                    className="w-4 h-4 rounded-full border"
                     style={{ backgroundColor: cls.color }}
                   />
-                  <div className="flex items-center gap-2">
-                    <Button onClick={() => handleEdit(cls)} size="icon">
-                      <FaEdit />
-                    </Button>
-                    <Button
-                      onClick={() => handleDelete(cls._id)}
-                      variant="destructive"
-                      size="icon"
-                    >
-                      <Trash2 size={18} />
-                    </Button>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {cls.type}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div className="col-span-1 flex items-center gap-2">
+                  <Button onClick={() => handleEdit(cls)} size="icon">
+                    <FaEdit />
+                  </Button>
+                  <Button
+                    onClick={() => handleDelete(cls._id)}
+                    variant="destructive"
+                    size="icon"
+                  >
+                    <Trash2 size={18} />
+                  </Button>
+                </div>
+
+                {/* Mobile stacked info */}
+                <div className="sm:hidden mt-2 flex flex-col gap-1 text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-gray-700 pt-2">
+                  <div>
+                    <strong>Class Name:</strong> {cls.name}
+                  </div>
+                  <div>
+                    <strong>Instructor:</strong> {cls.instructor}
+                  </div>
+                  <div>
+                    <strong>Day:</strong> {cls.day}
+                  </div>
+                  <div>
+                    <strong>Time:</strong> {cls.startTime} - {cls.endTime}
+                  </div>
+                  <div className="flex items-center">
+                    <strong>Type:</strong>{" "}
+                    <span
+                      className="inline-block w-3 h-3 rounded-full mr-1 ml-1"
+                      style={{ backgroundColor: cls.color }}
+                    ></span>
+                    {cls.type}
                   </div>
                 </div>
               </li>
-            ))}
-          </ul>
-        )}
+            ))
+          )}
+        </ul>
 
         {/* Pagination */}
         {filteredClasses.length > 0 && (
-          <div className="flex flex-wrap justify-center mt-3 sm:mt-4 gap-2">
+          <div className="flex flex-wrap justify-center mt-4 gap-2">
             <Button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage((prev) => prev - 1)}
@@ -467,7 +500,6 @@ export default function Classes() {
         )}
       </Card>
 
-      {/* Toast Container */}
       <ToastContainer
         position="top-right"
         autoClose={2000}
